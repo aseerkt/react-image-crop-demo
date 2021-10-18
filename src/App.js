@@ -23,13 +23,50 @@ function generateDownload(canvas, crop) {
   );
 }
 
+function setCanvasImage(image, canvas, crop) {
+  if (!crop || !canvas || !image) {
+    return;
+  }
+
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+  const ctx = canvas.getContext('2d');
+  // refer https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio
+  const pixelRatio = window.devicePixelRatio;
+
+  canvas.width = crop.width * pixelRatio * scaleX;
+  canvas.height = crop.height * pixelRatio * scaleY;
+
+  // refer https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/setTransform
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.imageSmoothingQuality = 'high';
+
+  // refer https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage
+  ctx.drawImage(
+    image,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    crop.width * scaleX,
+    crop.height * scaleY
+  );
+}
+
 export default function App() {
   const [upImg, setUpImg] = useState();
+
   const imgRef = useRef(null);
   const previewCanvasRef = useRef(null);
-  const [crop, setCrop] = useState({ unit: '%', width: 30, aspect: 16 / 9 });
+
+  const [crop, setCrop] = useState({ unit: 'px', width: 30, aspect: 1 });
   const [completedCrop, setCompletedCrop] = useState(null);
 
+  console.log(crop);
+
+  // on selecting file we set load the image on to cropper
   const onSelectFile = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -43,42 +80,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!completedCrop || !previewCanvasRef.current || !imgRef.current) {
-      return;
-    }
-
-    const image = imgRef.current;
-    const canvas = previewCanvasRef.current;
-    const crop = completedCrop;
-
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const ctx = canvas.getContext('2d');
-    const pixelRatio = window.devicePixelRatio;
-
-    canvas.width = crop.width * pixelRatio * scaleX;
-    canvas.height = crop.height * pixelRatio * scaleY;
-
-    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    ctx.imageSmoothingQuality = 'high';
-
-    ctx.drawImage(
-      image,
-      crop.x * scaleX,
-      crop.y * scaleY,
-      crop.width * scaleX,
-      crop.height * scaleY,
-      0,
-      0,
-      crop.width * scaleX,
-      crop.height * scaleY
-    );
+    setCanvasImage(imgRef.current, previewCanvasRef.current, completedCrop);
   }, [completedCrop]);
 
   return (
-    <div className="App">
+    <div className='App'>
       <div>
-        <input type="file" accept="image/*" onChange={onSelectFile} />
+        <input type='file' accept='image/*' onChange={onSelectFile} />
       </div>
       <ReactCrop
         src={upImg}
@@ -88,12 +96,13 @@ export default function App() {
         onComplete={(c) => setCompletedCrop(c)}
       />
       <div>
+        {/* Canvas to display cropped image */}
         <canvas
           ref={previewCanvasRef}
           // Rounding is important so the canvas width and height matches/is a multiple for sharpness.
           style={{
             width: Math.round(completedCrop?.width ?? 0),
-            height: Math.round(completedCrop?.height ?? 0)
+            height: Math.round(completedCrop?.height ?? 0),
           }}
         />
       </div>
@@ -102,7 +111,7 @@ export default function App() {
         iframe missing 'allow-downloads'. It's just for your reference.
       </p>
       <button
-        type="button"
+        type='button'
         disabled={!completedCrop?.width || !completedCrop?.height}
         onClick={() =>
           generateDownload(previewCanvasRef.current, completedCrop)
